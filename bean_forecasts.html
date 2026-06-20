@@ -1,0 +1,892 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Bean Forecasts</title>
+<link href="https://fonts.googleapis.com/css2?family=Righteous&family=Nunito:wght@400;600;700;800;900&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #baf2ff;
+    --bg2: #f8d8f1;
+    --ink: #111;
+    --line: #121212;
+    --panel: #fff6ef;
+    --panel-2: #f6f0ff;
+    --accent: #ff67c4;
+    --accent-2: #67ffd6;
+    --accent-3: #ffe96f;
+    --accent-4: #86a8ff;
+    --shadow: 6px 6px 0 #111;
+    --shadow-sm: 3px 3px 0 #111;
+    --radius: 18px;
+    --font-ui: Inter, ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+    --font-display: "Arial Black", Impact, Haettenschweiler, sans-serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    --title-h: 34px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { height: 100%; font-family: var(--font-ui); color: var(--ink); }
+  body {
+    overflow: hidden;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,0.15), rgba(255,255,255,0.05)),
+      linear-gradient(135deg, var(--bg), var(--bg2));
+    background-attachment: fixed;
+  }
+  body::before {
+    content: "";
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.25) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.25) 1px, transparent 1px);
+    background-size: 40px 40px;
+    opacity: .25;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .desktop { position: relative; width: 100vw; height: 100vh; overflow: hidden; padding: 16px; z-index: 1; }
+
+  /* ── Taskbar ── */
+  .taskbar {
+    position: fixed; left: 14px; right: 14px; bottom: 12px;
+    height: 58px;
+    background: rgba(255,255,255,.78);
+    backdrop-filter: blur(10px);
+    border: 3px solid var(--line);
+    border-radius: 18px;
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 8px 12px;
+    box-shadow: var(--shadow);
+    z-index: 9999;
+  }
+  .brand { display: flex; align-items: center; gap: 12px; font-weight: 900; letter-spacing: .02em; }
+  .bean-logo {
+    width: 36px; height: 36px; border-radius: 12px;
+    background: conic-gradient(from 210deg, #7bf1ff, #ffc1e3, #ffe49d, #7bf1ff);
+    border: 3px solid var(--line);
+    box-shadow: var(--shadow-sm);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 18px;
+  }
+  .brand-name {
+    font-family: var(--font-display);
+    font-size: 1.15rem;
+    letter-spacing: .02em;
+  }
+  .pill-clock {
+    border: 2px solid var(--line);
+    border-radius: 999px;
+    padding: 6px 10px;
+    background: rgba(255,255,255,.7);
+    font-size: 12px;
+    font-weight: 800;
+    font-family: var(--font-mono);
+  }
+
+  /* ── Buttons ── */
+  button { font-family: var(--font-ui); cursor: pointer; }
+  .btn {
+    border: 3px solid var(--line);
+    background: #fff;
+    border-radius: 12px;
+    padding: 8px 12px;
+    box-shadow: var(--shadow-sm);
+    font-weight: 800;
+    font-size: 13px;
+    transition: transform .1s, box-shadow .1s;
+  }
+  .btn:hover { transform: translate(-1px,-1px); box-shadow: 4px 4px 0 #111; }
+  .btn:active { transform: translate(1px,1px); box-shadow: 1px 1px 0 #111; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; transform: none; box-shadow: var(--shadow-sm); }
+  .btn-primary { background: var(--accent); }
+  .btn-green   { background: var(--accent-2); }
+  .btn-yellow  { background: var(--accent-3); }
+  .btn-blue    { background: var(--accent-4); }
+
+  /* ── Windows ── */
+  .window {
+    position: absolute;
+    min-width: 280px; min-height: 160px;
+    background: rgba(255, 250, 244, 0.94);
+    border: 3px solid var(--line);
+    border-radius: var(--radius);
+    box-shadow: var(--shadow);
+    overflow: hidden;
+    display: flex; flex-direction: column;
+  }
+  .window.hidden { display: none; }
+  .titlebar {
+    height: var(--title-h);
+    background: linear-gradient(90deg, #fff3a1, #ffc6e7, #cfe2ff);
+    border-bottom: 3px solid var(--line);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 6px 8px 6px 10px;
+    cursor: move; user-select: none; touch-action: none;
+  }
+  .title-left { display: flex; align-items: center; gap: 8px; min-width: 0; }
+  .title-icon {
+    width: 16px; height: 16px; border: 2px solid var(--line); border-radius: 4px;
+    background: radial-gradient(circle at 30% 30%, #fff, #ffb5de 40%, #9eefff 70%, #fff7b2 100%);
+    flex: 0 0 auto;
+  }
+  .title-text {
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    font-weight: 900; letter-spacing: .08em; text-transform: uppercase; font-size: 12px;
+    font-family: var(--font-display);
+  }
+  .wcontrols { display: flex; gap: 6px; }
+  .wctrl {
+    width: 24px; height: 20px; border: 2px solid var(--line); border-radius: 6px;
+    background: #fff; display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 900; cursor: pointer;
+  }
+  .wctrl:hover { background: #f0f0f0; }
+
+  .window-body {
+    padding: 12px; overflow: auto; flex: 1;
+    background:
+      linear-gradient(180deg, rgba(255,255,255,.65), rgba(255,255,255,.35)),
+      linear-gradient(180deg, var(--panel), var(--panel-2));
+  }
+  .window-body::-webkit-scrollbar { width: 12px; }
+  .window-body::-webkit-scrollbar-thumb { background: #ddd; border: 2px solid var(--line); border-radius: 10px; }
+
+  /* ── Cards ── */
+  .card {
+    border: 3px solid var(--line); border-radius: 16px;
+    background: rgba(255,255,255,.84);
+    padding: 10px; box-shadow: var(--shadow-sm);
+  }
+  .card + .card { margin-top: 8px; }
+
+  /* ── Fields / inputs ── */
+  label { font-size: 12px; font-weight: 800; text-transform: uppercase; letter-spacing: .04em; display: block; margin-bottom: 4px; }
+  input[type="text"], input[type="password"], input[type="number"], textarea, select {
+    width: 100%;
+    border: 3px solid var(--line); border-radius: 12px;
+    background: #fff; padding: 10px;
+    font-family: var(--font-ui); font-size: 13px;
+    box-shadow: inset 2px 2px 0 rgba(0,0,0,.06);
+    outline: none;
+    transition: border-color .15s;
+  }
+  input:focus, textarea:focus { border-color: var(--accent-2); }
+  textarea { resize: vertical; min-height: 72px; line-height: 1.5; }
+  .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 8px; }
+
+  /* ── Grid ── */
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .col { display: flex; flex-direction: column; gap: 8px; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+
+  /* ── Status dot ── */
+  .dot { width: 9px; height: 9px; border-radius: 50%; border: 2px solid var(--line); display: inline-block; flex-shrink: 0; }
+  .dot-idle { background: #ddd; }
+  .dot-go { background: var(--accent-2); animation: pulse .9s infinite; }
+  .dot-done { background: var(--accent-2); }
+  .dot-err { background: var(--accent); }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.3} }
+
+  /* ── Status bar ── */
+  .status-strip {
+    display: flex; align-items: center; gap: 8px;
+    padding: 6px 10px; border: 3px solid var(--line); border-radius: 10px;
+    font-size: 12px; font-weight: 700; background: white;
+    min-height: 34px; margin-bottom: 8px;
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* ── Output / log ── */
+  .forecast-body {
+    font-size: 13px; line-height: 1.75;
+    font-family: var(--font-mono); color: var(--ink);
+    padding: 12px;
+    white-space: pre-wrap;
+    min-height: 80px;
+  }
+  .forecast-body h2 {
+    font-family: var(--font-display);
+    font-size: 1rem; letter-spacing: .08em;
+    text-transform: uppercase;
+    margin: 1.2rem 0 .4rem;
+    padding-bottom: .25rem;
+    border-bottom: 3px solid var(--accent);
+    color: var(--ink);
+  }
+  .forecast-body h2:first-child { margin-top: 0; }
+  .forecast-body strong { color: var(--ink); font-weight: 900; }
+  .forecast-body em { font-style: italic; }
+  .forecast-body ul, .forecast-body ol { padding-left: 1.4rem; margin: .4rem 0; }
+  .forecast-body li { margin: .2rem 0; }
+  .forecast-body table { width:100%; border-collapse:collapse; margin:.8rem 0; font-size:12px; }
+  .forecast-body th { background: var(--accent); color:#fff; padding:.35rem .6rem; text-align:left; font-family: var(--font-display); text-transform: uppercase; letter-spacing: .06em; }
+  .forecast-body td { padding:.35rem .6rem; border-bottom: 2px solid #eee; }
+  .forecast-body tr:nth-child(even) td { background: rgba(103,255,214,.08); }
+
+  /* ── Cursor ── */
+  .cursor { display:inline-block; width:7px; height:1em; background: var(--accent-2); vertical-align:text-bottom; animation:blink .75s step-end infinite; }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  /* ── History items ── */
+  .hist-item {
+    border: 3px solid var(--line); border-radius: 10px;
+    padding: 8px 10px; background: #fff;
+    cursor: pointer; position: relative;
+    transition: border-color .15s, background .15s;
+    margin-bottom: 6px;
+    box-shadow: var(--shadow-sm);
+  }
+  .hist-item:hover { background: #fff3a1; border-color: var(--accent); }
+  .hist-item.active { border-color: var(--accent-2); border-left: 4px solid var(--accent-2); }
+  .hist-q { font-size: 12px; font-weight: 700; color: var(--ink); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .hist-meta { font-size: 11px; color: #555; margin-top:3px; font-family:var(--font-mono); }
+  .hist-del { position:absolute; top:6px; right:7px; background:none; border:none; font-size:13px; color:#aaa; cursor:pointer; opacity:0; transition:opacity .15s; padding:2px 5px; }
+  .hist-item:hover .hist-del { opacity:1; }
+  .hist-del:hover { color: var(--accent); }
+
+  .badge {
+    display:inline-block; padding: 4px 8px; border-radius:999px;
+    border: 2px solid var(--line); background:#fff;
+    font-size:11px; font-weight:800;
+  }
+
+  /* ── About box ── */
+  .about-text { font-size: 12px; line-height: 1.65; color: #333; }
+  .about-text strong { color: var(--ink); font-weight: 900; }
+
+  /* ── Toast ── */
+  .toast {
+    position:fixed; right:24px; top:24px; z-index:10000;
+    background:#fff; border:3px solid var(--line); border-radius:14px;
+    padding: 12px 14px; box-shadow: var(--shadow);
+    font-size:13px; font-weight:700; max-width:360px;
+    animation: slideIn .2s ease;
+  }
+  @keyframes slideIn { from{transform:translateX(30px);opacity:0} to{transform:none;opacity:1} }
+
+  .desk-badge {
+    position:absolute; right: 26px; top: 22px; width: 270px;
+    background: rgba(255,255,255,.72);
+    border: 3px solid var(--line);
+    border-radius: 18px; padding: 12px; box-shadow: var(--shadow); z-index: 2;
+  }
+  .desk-badge h1 {
+    font-family: var(--font-display); font-size: 1.5rem; line-height: 1;
+    margin: 0 0 8px;
+  }
+  .desk-badge p { font-size: 12px; color: #555; }
+
+  /* KPI value */
+  .kpi-val {
+    font-family: var(--font-display);
+    font-size: 1.6rem;
+    font-weight: 900;
+  }
+
+  @media (max-width:900px) {
+    .desk-badge { display:none; }
+    .grid-2 { grid-template-columns:1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="desktop" id="desktop">
+
+  <!-- Corner badge -->
+  <div class="desk-badge card">
+    <h1>☕ Bean Forecasts</h1>
+    <p>Superforecaster desktop. Drag windows around. Enter your Anthropic API key in Settings, then fire off a forecast.</p>
+  </div>
+
+  <!-- ── MISSION WINDOW ── -->
+  <section class="window" id="win-mission" style="left:18px;top:18px;width:500px;height:340px;z-index:11;">
+    <div class="titlebar">
+      <div class="title-left"><div class="title-icon"></div><div class="title-text">☕ Mission Control</div></div>
+      <div class="wcontrols"><div class="wctrl" data-action="min">_</div><div class="wctrl" data-action="close">×</div></div>
+    </div>
+    <div class="window-body">
+      <div class="row" style="justify-content:space-between;align-items:flex-start;margin-bottom:10px;">
+        <div>
+          <div style="font-family:var(--font-display);font-size:1.3rem;">Bean Forecasts OS</div>
+          <div style="font-size:12px;color:#555;margin-top:4px;">Good Judgment Project · CHAMP Framework · Live Web Search</div>
+        </div>
+        <div class="col">
+          <button class="btn btn-green" id="openAllBtn">Open all windows</button>
+          <button class="btn btn-yellow" id="resetLayoutBtn">Reset layout</button>
+        </div>
+      </div>
+      <div class="grid-2" style="margin-bottom:10px;">
+        <div class="card"><div style="font-size:11px;color:#555;font-weight:700;text-transform:uppercase;letter-spacing:.04em;">Forecasts run</div><div class="kpi-val" id="kpiForecastCount">0</div></div>
+        <div class="card"><div style="font-size:11px;color:#555;font-weight:700;text-transform:uppercase;letter-spacing:.04em;">Saved in history</div><div class="kpi-val" id="kpiHistCount">0</div></div>
+      </div>
+      <div class="card">
+        <div style="font-family:var(--font-display);font-size:.95rem;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;">How it works</div>
+        <ol style="font-size:12px;line-height:1.7;padding-left:1.2rem;color:#444;">
+          <li>Enter your Anthropic API key in <strong>Settings</strong></li>
+          <li>Type a forecastable question in <strong>New Forecast</strong></li>
+          <li>Hit <strong>Run Forecast</strong> — Claude searches the web and generates a full CHAMP analysis</li>
+          <li>Results appear live in <strong>Forecast Output</strong></li>
+          <li>Browse past forecasts in <strong>History</strong></li>
+        </ol>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── SETTINGS WINDOW ── -->
+  <section class="window" id="win-settings" style="left:538px;top:18px;width:400px;height:280px;z-index:12;">
+    <div class="titlebar">
+      <div class="title-left"><div class="title-icon"></div><div class="title-text">⚙️ Settings</div></div>
+      <div class="wcontrols"><div class="wctrl" data-action="min">_</div><div class="wctrl" data-action="close">×</div></div>
+    </div>
+    <div class="window-body">
+      <div class="card" style="margin-bottom:10px;">
+        <div style="font-size:12px;color:#555;">Your API key is stored only in your browser's localStorage. It is never transmitted anywhere except directly to <strong>api.anthropic.com</strong>.</div>
+      </div>
+      <div class="field">
+        <label>Anthropic API Key</label>
+        <input type="password" id="apiKeyInput" placeholder="sk-ant-..." />
+      </div>
+      <div class="row">
+        <button class="btn btn-green" id="saveKeyBtn">Save key</button>
+        <button class="btn" id="clearKeyBtn">Clear key</button>
+        <span class="badge" id="keyStatus">No key saved</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── NEW FORECAST WINDOW ── -->
+  <section class="window" id="win-input" style="left:18px;top:378px;width:500px;height:260px;z-index:10;">
+    <div class="titlebar">
+      <div class="title-left"><div class="title-icon"></div><div class="title-text">🔮 New Forecast</div></div>
+      <div class="wcontrols"><div class="wctrl" data-action="min">_</div><div class="wctrl" data-action="close">×</div></div>
+    </div>
+    <div class="window-body">
+      <div class="field">
+        <label>Forecastable question</label>
+        <textarea id="questionInput" placeholder="e.g. Will the Fed cut rates before September 2026?&#10;e.g. What will Trump's RCP approval be on Friday?&#10;&#10;Cmd/Ctrl+Enter to run" maxlength="500"></textarea>
+      </div>
+      <div class="row" style="justify-content:space-between;">
+        <div class="row">
+          <button class="btn btn-primary" id="runBtn">☕ Run Forecast</button>
+          <button class="btn" id="clearBtn">Clear</button>
+        </div>
+        <span style="font-size:11px;color:#888;font-family:var(--font-mono);" id="charCount">0/500</span>
+      </div>
+      <div id="errorMsg" style="display:none;margin-top:8px;font-size:12px;color:var(--accent);font-weight:700;border-left:3px solid var(--accent);padding-left:8px;"></div>
+    </div>
+  </section>
+
+  <!-- ── OUTPUT WINDOW ── -->
+  <section class="window" id="win-output" style="left:538px;top:316px;width:660px;height:500px;z-index:9;">
+    <div class="titlebar">
+      <div class="title-left"><div class="title-icon"></div><div class="title-text">📊 Forecast Output</div></div>
+      <div class="wcontrols"><div class="wctrl" data-action="min">_</div><div class="wctrl" data-action="close">×</div></div>
+    </div>
+    <div class="window-body" style="padding:0;">
+      <!-- Status strip -->
+      <div style="padding:8px 12px 0;">
+        <div class="status-strip" id="statusStrip">
+          <div class="dot dot-idle" id="statusDot"></div>
+          <span id="statusText" style="font-size:12px;font-weight:700;">Waiting for a question…</span>
+        </div>
+      </div>
+      <!-- Question header -->
+      <div id="outputHeader" style="display:none;padding:0 12px 8px;">
+        <div style="font-family:var(--font-display);font-size:.9rem;text-transform:uppercase;letter-spacing:.06em;color:#555;">Question</div>
+        <div id="outputQ" style="font-size:14px;font-weight:800;line-height:1.4;"></div>
+      </div>
+      <!-- Streaming text -->
+      <div id="outputContent" class="forecast-body"><span style="color:#aaa;font-family:var(--font-ui);font-size:13px;">Your forecast will appear here…</span></div>
+    </div>
+  </section>
+
+  <!-- ── HISTORY WINDOW ── -->
+  <section class="window" id="win-history" style="left:1220px;top:18px;width:360px;height:500px;z-index:8;">
+    <div class="titlebar">
+      <div class="title-left"><div class="title-icon"></div><div class="title-text">📜 History</div></div>
+      <div class="wcontrols"><div class="wctrl" data-action="min">_</div><div class="wctrl" data-action="close">×</div></div>
+    </div>
+    <div class="window-body">
+      <div class="row" style="margin-bottom:10px;">
+        <button class="btn btn-yellow" id="clearHistBtn" style="font-size:12px;">Clear all</button>
+        <span style="font-size:11px;color:#666;">Click a forecast to reload it</span>
+      </div>
+      <div id="historyList">
+        <div style="font-size:12px;color:#aaa;font-style:italic;text-align:center;margin-top:20px;">No forecasts yet.</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── ABOUT WINDOW ── -->
+  <section class="window" id="win-about" style="left:18px;top:658px;width:500px;height:200px;z-index:7;">
+    <div class="titlebar">
+      <div class="title-left"><div class="title-icon"></div><div class="title-text">ℹ️ About Bean Forecasts</div></div>
+      <div class="wcontrols"><div class="wctrl" data-action="min">_</div><div class="wctrl" data-action="close">×</div></div>
+    </div>
+    <div class="window-body">
+      <div class="grid-2">
+        <div class="card about-text">
+          <strong>Methodology</strong><br>
+          Built on the <strong>Good Judgment Project</strong> superforecasting framework. Every forecast applies <strong>CHAMP</strong>: Comparisons, Historical Trends, Average Opinions, Mathematical Models, Predictable Biases.
+        </div>
+        <div class="card about-text">
+          <strong>Tech</strong><br>
+          Calls <strong>claude-sonnet-4-20250514</strong> directly from your browser via the Anthropic API. Uses the <strong>web_search</strong> beta tool (up to 10 searches per forecast). History stored in localStorage.
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<!-- Taskbar -->
+<div class="taskbar">
+  <div class="brand">
+    <div class="bean-logo">☕</div>
+    <div class="brand-name">Bean Forecasts</div>
+    <span class="pill-clock" id="clockPill"></span>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <button class="btn btn-primary"  onclick="showWin('win-mission')">Mission</button>
+    <button class="btn btn-green"    onclick="showWin('win-input')">New Forecast</button>
+    <button class="btn btn-blue"     onclick="showWin('win-output')">Output</button>
+    <button class="btn btn-yellow"   onclick="showWin('win-history')">History</button>
+    <button class="btn"              onclick="showWin('win-settings')">Settings</button>
+    <button class="btn"              onclick="resetLayout()">Reset Layout</button>
+  </div>
+</div>
+
+<script>
+// ── Default layout ────────────────────────────────────────────────────────
+const DEFAULT_LAYOUT = {
+  'win-mission':  { left:18,   top:18,  width:500, height:340 },
+  'win-settings': { left:538,  top:18,  width:400, height:280 },
+  'win-input':    { left:18,   top:378, width:500, height:260 },
+  'win-output':   { left:538,  top:316, width:660, height:500 },
+  'win-history':  { left:1220, top:18,  width:360, height:500 },
+  'win-about':    { left:18,   top:658, width:500, height:200 },
+};
+
+// ── State ─────────────────────────────────────────────────────────────────
+const state = {
+  z: 20,
+  apiKey: localStorage.getItem('bean_apikey') || '',
+  history: JSON.parse(localStorage.getItem('bean_history') || '[]'),
+  layout: JSON.parse(localStorage.getItem('bean_layout') || '{}'),
+  activeHistId: null,
+  isRunning: false,
+  runCount: 0,
+};
+
+// ── Clock ─────────────────────────────────────────────────────────────────
+function syncClock() {
+  document.getElementById('clockPill').textContent =
+    new Date().toLocaleTimeString('en-US', {hour:'2-digit',minute:'2-digit',second:'2-digit'});
+}
+setInterval(syncClock, 1000); syncClock();
+
+// ── Toast ─────────────────────────────────────────────────────────────────
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  setTimeout(() => el.remove(), 2500);
+}
+
+// ── Window management ─────────────────────────────────────────────────────
+const wins = [...document.querySelectorAll('.window')];
+
+function bringToFront(win) { state.z++; win.style.zIndex = state.z; }
+function showWin(id) {
+  const w = document.getElementById(id);
+  w.classList.remove('hidden');
+  bringToFront(w);
+  const body = w.querySelector('.window-body');
+  if (body) body.style.display = '';
+}
+
+function applyLayout() {
+  wins.forEach(win => {
+    const id = win.id;
+    const f = state.layout[id] || DEFAULT_LAYOUT[id];
+    if (!f) return;
+    win.style.left = f.left + 'px';
+    win.style.top  = f.top  + 'px';
+    win.style.width  = f.width  + 'px';
+    win.style.height = f.height + 'px';
+  });
+}
+
+function saveLayout() {
+  wins.forEach(win => {
+    state.layout[win.id] = {
+      left:   parseInt(win.style.left, 10),
+      top:    parseInt(win.style.top,  10),
+      width:  parseInt(win.style.width, 10),
+      height: parseInt(win.style.height, 10),
+    };
+  });
+  localStorage.setItem('bean_layout', JSON.stringify(state.layout));
+}
+
+function resetLayout() {
+  state.layout = {};
+  localStorage.setItem('bean_layout', JSON.stringify(state.layout));
+  wins.forEach(w => w.classList.remove('hidden'));
+  applyLayout();
+  toast('Layout reset ☕');
+}
+
+// Drag & resize
+wins.forEach(win => {
+  bringToFront(win);
+  win.addEventListener('pointerdown', () => bringToFront(win));
+  const bar = win.querySelector('.titlebar');
+  let sX, sY, sL, sT, drag = false;
+  bar.addEventListener('pointerdown', e => {
+    if (e.target.classList.contains('wctrl')) return;
+    drag = true; bringToFront(win);
+    sX = e.clientX; sY = e.clientY;
+    sL = parseInt(win.style.left,10)||win.offsetLeft;
+    sT = parseInt(win.style.top,10)||win.offsetTop;
+    bar.setPointerCapture(e.pointerId);
+  });
+  bar.addEventListener('pointermove', e => {
+    if (!drag) return;
+    win.style.left = Math.max(0, sL + e.clientX - sX) + 'px';
+    win.style.top  = Math.max(0, sT + e.clientY - sY) + 'px';
+  });
+  bar.addEventListener('pointerup', () => { drag = false; saveLayout(); });
+
+  win.querySelectorAll('.wctrl').forEach(c => {
+    c.addEventListener('click', () => {
+      const a = c.dataset.action;
+      if (a === 'close') { win.classList.add('hidden'); return; }
+      if (a === 'min') {
+        const body = win.querySelector('.window-body');
+        const collapsed = body.style.display === 'none';
+        body.style.display = collapsed ? '' : 'none';
+        win.style.height = collapsed ? (DEFAULT_LAYOUT[win.id]?.height || 300) + 'px' : '40px';
+        saveLayout();
+      }
+    });
+  });
+});
+
+applyLayout();
+
+document.getElementById('openAllBtn').onclick = () => wins.forEach(w => showWin(w.id));
+document.getElementById('resetLayoutBtn').onclick = resetLayout;
+
+// ── Settings ──────────────────────────────────────────────────────────────
+function renderKeyStatus() {
+  const s = document.getElementById('keyStatus');
+  if (state.apiKey) {
+    s.textContent = '✓ Key saved';
+    s.style.background = '#d1fae5';
+  } else {
+    s.textContent = 'No key saved';
+    s.style.background = '#fff';
+  }
+}
+
+document.getElementById('saveKeyBtn').onclick = () => {
+  const v = document.getElementById('apiKeyInput').value.trim();
+  if (!v.startsWith('sk-')) { toast('Key should start with sk-ant-…'); return; }
+  state.apiKey = v;
+  localStorage.setItem('bean_apikey', v);
+  document.getElementById('apiKeyInput').value = '';
+  renderKeyStatus();
+  toast('API key saved 🔐');
+};
+
+document.getElementById('clearKeyBtn').onclick = () => {
+  state.apiKey = '';
+  localStorage.removeItem('bean_apikey');
+  document.getElementById('apiKeyInput').value = '';
+  renderKeyStatus();
+  toast('Key cleared');
+};
+
+if (state.apiKey) document.getElementById('apiKeyInput').placeholder = '••••••••••••••••••••';
+renderKeyStatus();
+
+// ── Char count ────────────────────────────────────────────────────────────
+document.getElementById('questionInput').addEventListener('input', function() {
+  document.getElementById('charCount').textContent = this.value.length + '/500';
+});
+
+// ── System prompt ─────────────────────────────────────────────────────────
+function getSystemPrompt() {
+  const today = new Date().toLocaleDateString('en-US', { year:'numeric', month:'long', day:'numeric' });
+  return `You are a world-class superforecaster trained in the Good Judgment Project methodology. You have access to live web search — USE IT EXTENSIVELY before writing any analysis. Search for current statistics, recent news, expert opinions, prediction market data, and relevant base rates for every question.
+
+IMPORTANT: Search the web FIRST to gather current data, then write your analysis based on what you find. Do not rely on your training data alone — always look up current information.
+
+For every question, produce a complete structured analysis using this exact format:
+
+## 🔍 Question Triage
+Classify the question as:
+- **Clocklike** (regular, predictable, like physics)
+- **Goldilocks** (somewhat predictable with effort)
+- **Cloudlike** (highly uncertain, chaotic)
+State WHY it falls into this category and what the current state of affairs is as of today.
+
+## 📊 CHAMP Framework Analysis
+Go through each component with current data from your web searches:
+- **C — Comparisons**: Reference classes and base rates from similar historical events (cite sources)
+- **H — Historical Trends**: Current and recent trends with specific data points and dates
+- **A — Average Opinions**: Current expert consensus, prediction market prices (Metaculus, Polymarket, Manifold), recent polls — search for these specifically
+- **M — Mathematical Models**: Quantitative reasoning using current numbers, growth rates, timelines
+- **P — Predictable Biases**: Identify overconfidence, availability, anchoring, narrative fallacies at play
+
+## 🌍 Outside View → Inside View
+**Outside View**: What does the base rate / reference class say? Use searched data.
+**Inside View**: What makes THIS situation different right now? List specific current factors.
+
+## 🌳 Scenario Tree
+List 3-5 named scenarios with explicit probabilities (must sum to ~100%):
+For each scenario provide: Name, Probability (%), Key current conditions, Expected outcome
+
+## 🎯 Calibrated Point Estimate
+State your **final probability estimate** as a single number (e.g., 34%).
+State your **80% confidence interval** (e.g., 22% – 48%).
+Explain your reasoning with references to what you found in your searches.
+
+## 🔄 Belief Updating Signals
+List 5-7 concrete pieces of evidence that would cause you to update your forecast:
+- Evidence that would RAISE the probability (and by how much)
+- Evidence that would LOWER the probability (and by how much)
+
+## ⚠️ Honest Limitations
+State clearly:
+- What remains unknown despite your searches
+- Key uncertainties
+- Why this estimate could be badly wrong
+- What additional data would most improve this forecast
+
+Important rules:
+- ALWAYS search the web before writing each major section.
+- ALWAYS give a specific probability number. Never refuse to estimate.
+- Cite the sources you found — include URLs or publication names.
+- Apply Bayesian updating visibly using the data you searched.
+- Today's date is ${today}. All analysis should be current as of today.`;
+}
+
+// ── Markdown renderer ─────────────────────────────────────────────────────
+function renderMarkdown(text) {
+  return text
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/^## (.+)$/gm,'<h2>$1</h2>')
+    .replace(/\*\*(.+?)\*\*/g,'<strong>$1</strong>')
+    .replace(/\*(.+?)\*/g,'<em>$1</em>')
+    .replace(/\|(.+)\|\n\|[-| :]+\|\n((?:\|.+\|\n?)*)/g,(_,header,rows)=>{
+      const ths=header.split('|').filter(s=>s.trim()).map(s=>`<th>${s.trim()}</th>`).join('');
+      const trs=rows.trim().split('\n').map(row=>{
+        const tds=row.split('|').filter(s=>s.trim()).map(s=>`<td>${s.trim()}</td>`).join('');
+        return`<tr>${tds}</tr>`;
+      }).join('');
+      return`<table><thead><tr>${ths}</tr></thead><tbody>${trs}</tbody></table>`;
+    })
+    .replace(/^- (.+)$/gm,'<li>$1</li>')
+    .replace(/(<li>.*<\/li>\n?)+/g,s=>`<ul>${s}</ul>`)
+    .replace(/^\d+\. (.+)$/gm,'<li>$1</li>')
+    .replace(/\n\n/g,'<br><br>');
+}
+
+// ── Status helpers ────────────────────────────────────────────────────────
+function setStatus(type, text) {
+  const dot = document.getElementById('statusDot');
+  dot.className = 'dot dot-' + type;
+  document.getElementById('statusText').textContent = text;
+}
+
+// ── Run forecast ──────────────────────────────────────────────────────────
+async function runForecast() {
+  if (state.isRunning) return;
+  const question = document.getElementById('questionInput').value.trim();
+  const errEl = document.getElementById('errorMsg');
+  errEl.style.display = 'none';
+
+  if (!state.apiKey) {
+    errEl.textContent = '⚠ No API key — save one in Settings first.';
+    errEl.style.display = 'block';
+    showWin('win-settings');
+    return;
+  }
+  if (!question) {
+    errEl.textContent = '⚠ Enter a question to forecast.';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  state.isRunning = true;
+  document.getElementById('runBtn').disabled = true;
+
+  showWin('win-output');
+  const outContent = document.getElementById('outputContent');
+  const outHeader  = document.getElementById('outputHeader');
+  const outQ       = document.getElementById('outputQ');
+
+  outHeader.style.display = 'block';
+  outQ.textContent = question;
+  outContent.innerHTML = '<span class="cursor"></span>';
+  setStatus('go', 'Connecting to Claude with web search…');
+
+  let fullText = '';
+  const userMsg = `Search the web thoroughly, then provide a complete superforecaster analysis for this question:\n\n**${question}**\n\nSearch for: current statistics, recent news (last 6 months), prediction market prices on Metaculus/Polymarket/Manifold, expert opinions, and historical base rates. Use all searches to ground your analysis in real, current data. Do not skip any section of the analysis.`;
+
+  try {
+    const resp = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': state.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'web-search-2025-03-05',
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 16000,
+        stream: true,
+        system: getSystemPrompt(),
+        tools: [{ type:'web_search_20250305', name:'web_search', max_uses:10 }],
+        messages: [{ role:'user', content: userMsg }],
+      }),
+    });
+
+    if (!resp.ok) {
+      const err = await resp.json();
+      throw new Error(err.error?.message || `API error ${resp.status}`);
+    }
+
+    setStatus('go', 'Claude is searching the web and forecasting…');
+
+    const reader = resp.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream:true });
+      const lines = buf.split('\n');
+      buf = lines.pop();
+
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const raw = line.slice(6).trim();
+        if (raw === '[DONE]') continue;
+        try {
+          const evt = JSON.parse(raw);
+          if (evt.type === 'content_block_start' && evt.content_block?.name === 'web_search') {
+            setStatus('go', '🔍 Searching the web for current data…');
+          }
+          if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+            setStatus('go', '✍️ Generating forecast…');
+            fullText += evt.delta.text;
+            outContent.innerHTML = renderMarkdown(fullText) + '<span class="cursor"></span>';
+          }
+        } catch(e) { /* skip */ }
+      }
+    }
+
+    outContent.innerHTML = renderMarkdown(fullText);
+    setStatus('done', '✅ Forecast complete.');
+    state.runCount++;
+    document.getElementById('kpiForecastCount').textContent = state.runCount;
+
+    const entry = {
+      id: Date.now(),
+      question,
+      forecast: fullText,
+      createdAt: new Date().toISOString(),
+    };
+    state.history.unshift(entry);
+    if (state.history.length > 100) state.history = state.history.slice(0, 100);
+    localStorage.setItem('bean_history', JSON.stringify(state.history));
+    state.activeHistId = entry.id;
+    renderHistory();
+    toast('Forecast saved to history ☕');
+
+  } catch(err) {
+    setStatus('err', '❌ Error: ' + err.message);
+    outContent.innerHTML = `<span style="color:var(--accent);font-family:var(--font-ui);">${err.message}</span>`;
+  } finally {
+    state.isRunning = false;
+    document.getElementById('runBtn').disabled = false;
+  }
+}
+
+document.getElementById('runBtn').onclick = runForecast;
+document.getElementById('clearBtn').onclick = () => {
+  document.getElementById('questionInput').value = '';
+  document.getElementById('charCount').textContent = '0/500';
+  document.getElementById('errorMsg').style.display = 'none';
+};
+document.getElementById('questionInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) runForecast();
+});
+
+// ── History ───────────────────────────────────────────────────────────────
+function renderHistory() {
+  const list = document.getElementById('historyList');
+  document.getElementById('kpiHistCount').textContent = state.history.length;
+  if (!state.history.length) {
+    list.innerHTML = '<div style="font-size:12px;color:#aaa;font-style:italic;text-align:center;margin-top:16px;">No forecasts yet.</div>';
+    return;
+  }
+  list.innerHTML = state.history.map(item => `
+    <div class="hist-item ${item.id === state.activeHistId ? 'active' : ''}" onclick="loadHistory(${item.id})">
+      <div class="hist-q">${escHtml(item.question)}</div>
+      <div class="hist-meta">${new Date(item.createdAt).toLocaleDateString('en-US',{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'})}</div>
+      <button class="hist-del" onclick="deleteHistory(event,${item.id})">✕</button>
+    </div>`).join('');
+}
+
+function loadHistory(id) {
+  const item = state.history.find(h => h.id === id);
+  if (!item) return;
+  state.activeHistId = id;
+  renderHistory();
+  showWin('win-output');
+  document.getElementById('outputHeader').style.display = 'block';
+  document.getElementById('outputQ').textContent = item.question;
+  document.getElementById('outputContent').innerHTML = renderMarkdown(item.forecast);
+  setStatus('done', '📜 Loaded from history.');
+}
+
+function deleteHistory(e, id) {
+  e.stopPropagation();
+  state.history = state.history.filter(h => h.id !== id);
+  localStorage.setItem('bean_history', JSON.stringify(state.history));
+  if (state.activeHistId === id) {
+    state.activeHistId = null;
+    document.getElementById('outputContent').innerHTML = '<span style="color:#aaa;font-family:var(--font-ui);font-size:13px;">Select a forecast from History.</span>';
+    setStatus('idle', 'Waiting for a question…');
+  }
+  renderHistory();
+}
+
+document.getElementById('clearHistBtn').onclick = () => {
+  if (!confirm('Clear all forecast history?')) return;
+  state.history = [];
+  state.activeHistId = null;
+  localStorage.setItem('bean_history', JSON.stringify(state.history));
+  renderHistory();
+  toast('History cleared');
+};
+
+function escHtml(s) {
+  return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+renderHistory();
+</script>
+</body>
+</html>
